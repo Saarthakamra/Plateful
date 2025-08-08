@@ -6,15 +6,12 @@ import os
 import re
 
 # --- Dependency Imports ---
-# Make sure you have these libraries installed:
-# pip install streamlit googlemaps gspread oauth2client
 import googlemaps
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # --- Initial Page and State Setup ---
 st.set_page_config(page_title="Food Donation Assistant", page_icon="🍽️")
-
 st.title("🍽️ Food Donation Assistant")
 
 # Initialize session state variables
@@ -64,10 +61,20 @@ def find_recipients(location: str):
 
 
 def log_donation_request(user_name, user_phone, organizations):
-    """Logs a donation request to a Google Sheet by reading service_account.json directly."""
+    """Logs a donation request to a Google Sheet using the best available credentials."""
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
+
+        # --- UNIFIED CREDENTIALS LOGIC ---
+        # Try to use the local file first; if it fails, use Streamlit secrets
+        if os.path.exists("service_account.json"):
+            creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
+            print("Using service_account.json for authentication.")
+        else:
+            creds_json = dict(st.secrets["connections"]["gcp"]["service_account"])
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scopes=scope)
+            print("Using Streamlit secrets for authentication.")
+
         client = gspread.authorize(creds)
 
         spreadsheet_id = st.secrets["connections"]["gcp"]["GOOGLE_SHEET_ID"]
@@ -87,9 +94,6 @@ def log_donation_request(user_name, user_phone, organizations):
             sheet.append_rows(rows_to_add)
 
         return {"success": True, "message": "Request logged successfully!"}
-    except FileNotFoundError:
-        return {
-            "error": "Could not log to sheet: 'service_account.json' file not found. Make sure it's in the same directory as app.py."}
     except Exception as e:
         return {"error": f"Could not write to sheet: {e}"}
 
@@ -108,17 +112,16 @@ def format_organizations(orgs_data):
 # --- Main Chat Logic ---
 def process_message(user_message):
     """Processes user message and manages conversation state."""
+    # This entire function remains the same as the last correct version
     message_lower = user_message.lower().strip()
     context = st.session_state.context
 
-    # State 2: Awaiting user's name
     if context.get('awaiting_user_name'):
         context['user_name'] = user_message
         context['awaiting_user_name'] = False
         context['awaiting_user_phone'] = True
         return "Thank you. Now, what is your phone number?"
 
-    # State 3: Awaiting user's phone
     if context.get('awaiting_user_phone'):
         context['user_phone'] = user_message
 
@@ -129,11 +132,9 @@ def process_message(user_message):
                 st.session_state.cached_orgs
             )
 
-        # Reset context
         st.session_state.context = {}
         return f"✅ {log_result['message']}" if log_result.get('success') else f"❌ Error: {log_result['error']}"
 
-    # State 1: Awaiting confirmation to log
     if context.get('awaiting_log_confirmation'):
         if message_lower == 'yes':
             context['awaiting_log_confirmation'] = False
@@ -143,7 +144,6 @@ def process_message(user_message):
             st.session_state.context = {}
             return "Okay, I won't log this request. Is there anything else I can help you with?"
 
-    # Initial State: New search request
     if "find" in message_lower or "donate" in message_lower or "where can" in message_lower:
         location_match = re.search(r'in\s(.+)', user_message, re.IGNORECASE)
         if not location_match:
