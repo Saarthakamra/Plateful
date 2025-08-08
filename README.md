@@ -2,9 +2,6 @@
 
 A conversational AI assistant to help connect food donors with recipients, featuring automated logging to Google Sheets. This bot uses natural language to find nearby organizations and streamlines the donation process.
 
-![Demo GIF](https://your-gif-url-here.com/demo.gif)
-*A short demo showing the chatbot in action.*
-
 ---
 
 ## ✨ Features
