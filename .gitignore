@@ -1,0 +1,14 @@
+# .gitignore
+
+# Ignore Python virtual environment
+venv/
+__pycache__/
+
+# Ignore IDE-specific files
+.idea/
+
+# --- CRITICAL: Ignore all secret files ---
+.streamlit/
+secrets.toml
+service_account.json
+*.env

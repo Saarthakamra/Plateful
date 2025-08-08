@@ -1,0 +1,12 @@
+# Food Donation Chatbot Requirements
+# Core dependencies
+googlemaps>=4.10.0
+
+# LangChain dependencies (optional - for enhanced AI features)
+langchain>=0.1.0
+langchain-google-genai>=1.0.0
+langgraph>=0.0.40
+langchain-core>=0.1.0
+
+# Alternative minimal setup (uncomment if you only want basic functionality):
+# googlemaps>=4.10.0
