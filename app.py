@@ -10,9 +10,11 @@ import googlemaps
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# --- Initial Page and State Setup ---
-st.set_page_config(page_title="Food Donation Assistant", page_icon="🍽️")
-st.title("🍽️ Food Donation Assistant")
+# --- THIS IS THE CHANGE ---
+# Set the page configuration and title for the app
+st.set_page_config(page_title="Plateful", page_icon="🍽️")
+st.title("🍽️ Plateful - Food Distribution Agent")
+# --- END OF CHANGE ---
 
 # Initialize session state variables
 if "messages" not in st.session_state:
@@ -21,6 +23,8 @@ if "context" not in st.session_state:
     st.session_state.context = {}
 if "cached_orgs" not in st.session_state:
     st.session_state.cached_orgs = []
+
+# ... (the rest of your code remains the same)
 
 
 # --- Helper Functions (Tools) ---
