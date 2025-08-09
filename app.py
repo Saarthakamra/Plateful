@@ -5,18 +5,15 @@ import time
 import os
 import re
 
-# --- Dependency Imports ---
 import googlemaps
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# --- THIS IS THE CHANGE ---
-# Set the page configuration and title for the app
+# app title and page configuration
 st.set_page_config(page_title="Plateful", page_icon="🍽️")
 st.title("🍽️ Plateful - Food Distribution Agent")
-# --- END OF CHANGE ---
 
-# Initialize session state variables
+# initialize session state for chat history and context
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "context" not in st.session_state:
@@ -24,10 +21,8 @@ if "context" not in st.session_state:
 if "cached_orgs" not in st.session_state:
     st.session_state.cached_orgs = []
 
-# ... (the rest of your code remains the same)
 
-
-# --- Helper Functions (Tools) ---
+# helper function to find nearby ngos
 def find_recipients(location: str):
     """Searches for organizations using Google Places API."""
     try:
@@ -64,23 +59,20 @@ def find_recipients(location: str):
         return {"api_error": True, "error": str(e)}
 
 
+# helper function to log donation requests to google sheets
 def log_donation_request(user_name, user_phone, organizations):
     """Logs a donation request to a Google Sheet using the best available credentials."""
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
-        # --- UNIFIED CREDENTIALS LOGIC ---
-        # Try to use the local file first; if it fails, use Streamlit secrets
+        # use local service_account file if it exists, otherwise use streamlit secrets
         if os.path.exists("service_account.json"):
             creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
-            print("Using service_account.json for authentication.")
         else:
             creds_json = dict(st.secrets["connections"]["gcp"]["service_account"])
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scopes=scope)
-            print("Using Streamlit secrets for authentication.")
 
         client = gspread.authorize(creds)
-
         spreadsheet_id = st.secrets["connections"]["gcp"]["GOOGLE_SHEET_ID"]
         sheet = client.open_by_key(spreadsheet_id).sheet1
 
@@ -91,6 +83,7 @@ def log_donation_request(user_name, user_phone, organizations):
                 [user_name, user_phone, org.get('name', 'N/A'), org.get('phone', 'N/A'), org.get('website', 'N/A'),
                  timestamp])
 
+        # add headers if the sheet is empty
         if not sheet.get_all_values():
             sheet.append_row(["Donor Name", "Donor Phone", "NGO Name", "NGO Phone", "NGO Website", "Timestamp"])
 
@@ -102,6 +95,7 @@ def log_donation_request(user_name, user_phone, organizations):
         return {"error": f"Could not write to sheet: {e}"}
 
 
+# helper function to format the ngo data for display
 def format_organizations(orgs_data):
     """Formats the organization data for display."""
     response = ""
@@ -113,13 +107,13 @@ def format_organizations(orgs_data):
     return response
 
 
-# --- Main Chat Logic ---
+# main chat logic handler
 def process_message(user_message):
     """Processes user message and manages conversation state."""
-    # This entire function remains the same as the last correct version
     message_lower = user_message.lower().strip()
     context = st.session_state.context
 
+    # state machine for conversation flow
     if context.get('awaiting_user_name'):
         context['user_name'] = user_message
         context['awaiting_user_name'] = False
@@ -136,7 +130,7 @@ def process_message(user_message):
                 st.session_state.cached_orgs
             )
 
-        st.session_state.context = {}
+        st.session_state.context = {} # reset context after logging
         return f"✅ {log_result['message']}" if log_result.get('success') else f"❌ Error: {log_result['error']}"
 
     if context.get('awaiting_log_confirmation'):
@@ -148,6 +142,7 @@ def process_message(user_message):
             st.session_state.context = {}
             return "Okay, I won't log this request. Is there anything else I can help you with?"
 
+    # initial search handler
     if "find" in message_lower or "donate" in message_lower or "where can" in message_lower:
         location_match = re.search(r'in\s(.+)', user_message, re.IGNORECASE)
         if not location_match:
@@ -170,7 +165,7 @@ def process_message(user_message):
     return "I can help you find food donation centers. Please tell me your city, like 'Where can I donate in Delhi?'"
 
 
-# --- Display Chat History and Handle Input ---
+# render chat history and handle new input
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
